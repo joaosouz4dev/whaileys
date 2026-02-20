@@ -40,6 +40,16 @@ import {
 } from "../WABinary";
 import { randomBytes } from "crypto";
 
+// Map custom platform names to valid OS names accepted by WhatsApp
+const VALID_OS_MAP: { [key: string]: string } = {
+  Baileys: "Windows",
+  baileys: "Windows"
+};
+
+const getPlatformOS = (platform: string): string => {
+  return VALID_OS_MAP[platform] || platform;
+};
+
 /**
  * Connects to WA servers and performs:
  * - simple queries (no retry mechanism, wait for connection establishment)
@@ -562,7 +572,7 @@ export const makeSocket = ({
             {
               tag: "companion_platform_display",
               attrs: {},
-              content: `${browser[1]} (${browser[0]})`
+              content: `${browser[1]} (${getPlatformOS(browser[0])})`
             },
             {
               tag: "link_code_pairing_nonce",

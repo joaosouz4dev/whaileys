@@ -4,7 +4,8 @@
       "Bash(npx tsc:*)",
       "Bash(npm i)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(yarn build:tsc:*)"
     ]
   }
 }
