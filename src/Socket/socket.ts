@@ -498,73 +498,91 @@ export const makeSocket = ({
     );
   };
 
-  const requestPairingCode = async (
-    phoneNumber: string,
-    customPairingCode?: string
-  ): Promise<string> => {
-    const pairingCode = customPairingCode ?? bytesToCrockford(randomBytes(5));
+const requestPairingCode = async (
+  phoneNumber: string,
+  showPushNotification: boolean = true
+): Promise<string> => {
+  // Gerar ephemeral key pair para este pairing (igual ao Go)
+  const pairingEphemeralKeyPair = Curve.generateKeyPair();
+  
+  // Gerar o linking code (5 bytes -> crockford base32 = 8 chars)
+  const linkingCodeBytes = randomBytes(5);
+  const pairingCode = bytesToCrockford(linkingCodeBytes);
 
-    if (customPairingCode && customPairingCode?.length !== 8) {
-      throw new Boom("Custom pairing code must be exactly 8 chars");
-    }
+  const jid = jidEncode(phoneNumber, "s.whatsapp.net");
 
-    authState.creds.pairingCode = pairingCode;
-    authState.creds.me = {
-      id: jidEncode(phoneNumber, "s.whatsapp.net"),
-      name: "~"
-    };
-    ev.emit("creds.update", authState.creds);
+  authState.creds.pairingCode = pairingCode;
+  authState.creds.pairingEphemeralKeyPair = pairingEphemeralKeyPair;
+  authState.creds.me = { id: jid, name: "~" };
+  ev.emit("creds.update", authState.creds);
 
-    await sendNode({
-      tag: "iq",
-      attrs: {
-        to: S_WHATSAPP_NET,
-        type: "set",
-        id: generateMessageTag(),
-        xmlns: "md"
-      },
-      content: [
-        {
-          tag: "link_code_companion_reg",
-          attrs: {
-            jid: authState.creds.me.id,
-            stage: "companion_hello",
-            // eslint-disable-next-line camelcase
-            should_show_push_notification: "true"
+  // Gerar a chave empacotada com o novo ephemeral key pair
+  const ephemeralKey = await generatePairingKey(pairingCode, pairingEphemeralKeyPair);
+
+  const resp = await query({
+    tag: "iq",
+    attrs: {
+      to: S_WHATSAPP_NET,
+      type: "set",
+      id: generateMessageTag(),
+      xmlns: "md"
+    },
+    content: [
+      {
+        tag: "link_code_companion_reg",
+        attrs: {
+          jid,
+          stage: "companion_hello",
+          should_show_push_notification: showPushNotification.toString()
+        },
+        content: [
+          {
+            tag: "link_code_pairing_wrapped_companion_ephemeral_pub",
+            attrs: {},
+            content: ephemeralKey
           },
-          content: [
-            {
-              tag: "link_code_pairing_wrapped_companion_ephemeral_pub",
-              attrs: {},
-              content: await generatePairingKey()
-            },
-            {
-              tag: "companion_server_auth_key_pub",
-              attrs: {},
-              content: authState.creds.noiseKey.public
-            },
-            {
-              tag: "companion_platform_id",
-              attrs: {},
-              content: "1" // Chrome
-            },
-            {
-              tag: "companion_platform_display",
-              attrs: {},
-              content: `${browser[1]} (${browser[0]})`
-            },
-            {
-              tag: "link_code_pairing_nonce",
-              attrs: {},
-              content: "0"
-            }
-          ]
-        }
-      ]
-    });
+          {
+            tag: "companion_server_auth_key_pub",
+            attrs: {},
+            content: authState.creds.noiseKey.public
+          },
+          {
+            tag: "companion_platform_id",
+            attrs: {},
+            content: "1" // Chrome
+          },
+          {
+            tag: "companion_platform_display",
+            attrs: {},
+            content: `${browser[1]} (${browser[0]})`
+          },
+          {
+            tag: "link_code_pairing_nonce",
+            attrs: {},
+            content: new Uint8Array([0]) // ← era string "0", deve ser bytes
+          }
+        ]
+      }
+    ]
+  });
 
-    return authState.creds.pairingCode;
-  };
+  // ← NOVO: ler o pairing_ref da resposta (igual ao Go)
+  const regNode = getBinaryNodeChild(resp, "link_code_companion_reg");
+  const pairingRefNode = getBinaryNodeChild(regNode, "link_code_pairing_ref");
+  
+  if (!pairingRefNode) {
+    throw new Boom("link_code_pairing_ref não encontrado na resposta");
+  }
+
+  const pairingRef = (pairingRefNode.content as Buffer).toString("utf-8");
+
+  // Armazenar no cache para uso posterior no pair-success
+  authState.creds.pairingRef = pairingRef;
+  ev.emit("creds.update", authState.creds);
+
+  // Formato "XXXX-XXXX" igual ao Go: encodedLinkingCode[0:4] + "-" + encodedLinkingCode[4:]
+  return pairingCode.slice(0, 4) + "-" + pairingCode.slice(4);
+};
 
   async function generatePairingKey() {
     const salt = randomBytes(32);
