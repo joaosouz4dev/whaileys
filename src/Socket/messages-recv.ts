@@ -87,6 +87,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
   let sendActiveReceipts = false;
 
   const sendMessageAck = async ({ tag, attrs, content }: BinaryNode) => {
+    if (ws.readyState !== ws.OPEN) {
+      logger.debug({ tag, id: attrs.id }, "connection closed, skipping ack");
+      return;
+    }
+
     const stanza: BinaryNode = {
       tag: "ack",
       attrs: {
