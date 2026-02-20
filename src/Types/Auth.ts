@@ -44,7 +44,7 @@ export type AccountSettings = {
 
 export type AuthenticationCreds = SignalCreds & {
   readonly noiseKey: KeyPair;
-  readonly pairingEphemeralKeyPair: KeyPair;
+  pairingEphemeralKeyPair: KeyPair;
   advSecretKey: string;
 
   me?: Contact;
@@ -62,6 +62,7 @@ export type AuthenticationCreds = SignalCreds & {
   accountSyncCounter: number;
   accountSettings: AccountSettings;
   pairingCode: string | undefined;
+  pairingRef: string | undefined;
   registered: boolean;
   lastPropHash: string | undefined;
 };
