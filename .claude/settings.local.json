@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(npm i)"
+      "Bash(npm i)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm run build:*)"
     ]
   }
 }
