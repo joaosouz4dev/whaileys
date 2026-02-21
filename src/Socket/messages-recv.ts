@@ -413,11 +413,18 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
           "link_code_companion_reg"
         );
         if (!linkCodeCompanionReg) {
-          logger.warn("Received link_code_companion_reg notification without node content");
+          logger.warn(
+            "Received link_code_companion_reg notification without node content"
+          );
           break;
         }
-        if (!authState.creds.pairingCode || !authState.creds.pairingEphemeralKeyPair) {
-          logger.warn("Received link_code_companion_reg but pairing credentials are missing");
+        if (
+          !authState.creds.pairingCode ||
+          !authState.creds.pairingEphemeralKeyPair
+        ) {
+          logger.warn(
+            "Received link_code_companion_reg but pairing credentials are missing"
+          );
           break;
         }
         const refBuffer = getBinaryNodeChildBuffer(
@@ -432,7 +439,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
           linkCodeCompanionReg,
           "link_code_pairing_wrapped_primary_ephemeral_pub"
         );
-        if (!refBuffer || !primaryIdentityPubBuffer || !primaryEphemeralPubWrappedBuffer) {
+        if (
+          !refBuffer ||
+          !primaryIdentityPubBuffer ||
+          !primaryEphemeralPubWrappedBuffer
+        ) {
           logger.warn(
             {
               hasRef: !!refBuffer,
@@ -444,8 +455,12 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
           break;
         }
         const ref = toRequiredBuffer(refBuffer);
-        const primaryIdentityPublicKey = toRequiredBuffer(primaryIdentityPubBuffer);
-        const primaryEphemeralPublicKeyWrapped = toRequiredBuffer(primaryEphemeralPubWrappedBuffer);
+        const primaryIdentityPublicKey = toRequiredBuffer(
+          primaryIdentityPubBuffer
+        );
+        const primaryEphemeralPublicKeyWrapped = toRequiredBuffer(
+          primaryEphemeralPubWrappedBuffer
+        );
         const codePairingPublicKey = await decipherLinkPublicKey(
           primaryEphemeralPublicKeyWrapped
         );
